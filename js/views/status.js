@@ -2,7 +2,7 @@
 import { buscar, ultimaVerificacao, msgErro } from '../api.js';
 import { esc, icone, dataBR, carregandoHTML } from '../ui.js';
 
-const WORKFLOW = 'https://github.com/guilhermeromio-netto-prog/farol-hub/actions/workflows/checks.yml';
+const WORKFLOW = 'https://github.com/Guilh-abc/farol-hub/actions/workflows/checks.yml';
 const hora = (d) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 function conferir(dado, espera) {

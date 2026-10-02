@@ -4,7 +4,7 @@ O **Farol** é um hub de viagem em português do Brasil, pensado para quem quer 
 
 **HTML, CSS e JavaScript puros** (módulos ES): sem framework, sem npm, sem build, sem backend. Publicado no GitHub Pages.
 
-**Site:** https://guilhermeromio-netto-prog.github.io/farol-hub/ · **Status ao vivo:** [#/status](https://guilhermeromio-netto-prog.github.io/farol-hub/#/status)
+**Site:** https://guilh-abc.github.io/farol-hub/ · **Status ao vivo:** [#/status](https://guilh-abc.github.io/farol-hub/#/status)
 
 ## Páginas (rotas por hash)
 
@@ -29,7 +29,7 @@ O **Farol** é um hub de viagem em português do Brasil, pensado para quem quer 
 
 ```bash
 python3 tools/check.py                    # arquivos locais + serviços externos
-python3 tools/check.py --base https://guilhermeromio-netto-prog.github.io/farol-hub/   # confere também o que está publicado
+python3 tools/check.py --base https://guilh-abc.github.io/farol-hub/   # confere também o que está publicado
 python3 tools/check.py --so-internos      # sem rede
 ```
 

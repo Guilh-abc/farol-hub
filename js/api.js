@@ -370,7 +370,7 @@ export async function emAlta(destaques, { signal, onProgresso = () => {} } = {})
 
 /* ---------------- GitHub Actions (verificação automática) ---------------- */
 export async function ultimaVerificacao({ signal } = {}) {
-  const u = 'https://api.github.com/repos/guilhermeromio-netto-prog/farol-hub/actions/workflows/checks.yml/runs?per_page=1';
+  const u = 'https://api.github.com/repos/Guilh-abc/farol-hub/actions/workflows/checks.yml/runs?per_page=1';
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 12000);
   if (signal) signal.addEventListener('abort', () => ctrl.abort(), { once: true });

@@ -11,7 +11,7 @@ Confere, a partir do dados.json:
 
 Uso:
   python3 tools/check.py                      # arquivos locais + serviços externos
-  python3 tools/check.py --base https://guilhermeromio-netto-prog.github.io/farol-hub/
+  python3 tools/check.py --base https://guilh-abc.github.io/farol-hub/
   python3 tools/check.py --so-internos        # sem rede
 
 Saída: relatório em português. Código de saída 1 se houver alguma FALHA.
@@ -32,8 +32,8 @@ import urllib.parse
 import urllib.request
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ORIGEM_SITE = 'https://guilhermeromio-netto-prog.github.io'
-UA_API = 'FarolCheck/2.0 (+https://github.com/guilhermeromio-netto-prog/farol-hub; verificador de status)'
+ORIGEM_SITE = 'https://guilh-abc.github.io'
+UA_API = 'FarolCheck/2.0 (+https://github.com/Guilh-abc/farol-hub; verificador de status)'
 UA_NAV = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36 FarolCheck/2.0'
 SINAIS_CAPTCHA = ('captcha', 'px-captcha', 'cf-chl', 'are you a robot', 'access denied', 'perimeterx', 'datadome')
 
@@ -364,7 +364,7 @@ def checar_wiki(d):
 
 
 def checar_github():
-    url = 'https://api.github.com/repos/guilhermeromio-netto-prog/farol-hub/actions/workflows/checks.yml/runs?per_page=1'
+    url = 'https://api.github.com/repos/Guilh-abc/farol-hub/actions/workflows/checks.yml/runs?per_page=1'
     res = requisitar(url, cabecalhos={'Accept': 'application/vnd.github+json', 'Origin': ORIGEM_SITE}, tentativas=1)
     if res['status'] == 200:
         registrar('APIs', 'GitHub · última verificação', OK if cors_ok(res) else FALHA, 'HTTP 200' + ('' if cors_ok(res) else ' sem CORS'))
