@@ -49,7 +49,7 @@ export async function buscar(url, op = {}) {
 
   let resp;
   try {
-    const init = { signal: ctrl.signal, method: metodo, headers: texto ? {} : { Accept: 'application/json' } };
+    const init = { signal: ctrl.signal, method: metodo, headers: texto ? {} : { Accept: op.aceitar || (metodo === 'POST' ? '*/*' : 'application/json') } };
     if (corpo != null) { init.body = corpo; init.headers['Content-Type'] = 'application/x-www-form-urlencoded; charset=UTF-8'; }
     if (semCache) init.cache = 'no-store';
     resp = await fetch(url, init);
@@ -255,6 +255,32 @@ export async function todasNoticias(feeds, { signal } = {}) {
   return { itens, falhas };
 }
 
+/** Até n itens intercalando as fontes (uma de cada, depois a segunda de cada). */
+export function misturarNoticias(itens, n = 4) {
+  const grupos = new Map();
+  for (const it of itens) {
+    const k = it.feedId || it.fonte || '';
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(it);
+  }
+  const filas = [...grupos.values()];
+  const out = [];
+  let i = 0;
+  while (out.length < n) {
+    let added = false;
+    for (const fila of filas) {
+      if (fila[i]) {
+        out.push(fila[i]);
+        added = true;
+        if (out.length >= n) return out;
+      }
+    }
+    if (!added) break;
+    i += 1;
+  }
+  return out;
+}
+
 /* ---------------- Fotos da Wikipédia (lote, até 50 títulos) ---------------- */
 /** Devolve { tituloOriginal: {src, largura, altura, titulo} } para os títulos pedidos. */
 export async function fotosWiki(titulos, { tamanho = 480, signal } = {}) {
@@ -269,55 +295,102 @@ export async function fotosWiki(titulos, { tamanho = 480, signal } = {}) {
   const mapa = {};
   const volta = {}; // título final → original
   const norm = (t) => t.replace(/_/g, ' ');
-  lista.forEach((t) => { volta[norm(t)] = t; });
-  (q.normalized || []).forEach((n) => { if (volta[n.from] !== undefined || lista.includes(n.from)) volta[n.to] = volta[n.from] || n.from; });
-  (q.redirects || []).forEach((r) => { volta[r.to] = volta[r.from] || r.from; });
+  const aliases = (t) => [t, norm(t), String(t).replace(/ /g, '_')];
+  lista.forEach((t) => { aliases(t).forEach((a) => { volta[a] = t; }); });
+  (q.normalized || []).forEach((n) => {
+    const orig = volta[n.from] || n.from;
+    aliases(n.to).forEach((a) => { volta[a] = orig; });
+  });
+  (q.redirects || []).forEach((r) => {
+    const orig = volta[r.from] || r.from;
+    aliases(r.to).forEach((a) => { volta[a] = orig; });
+  });
   (q.pages || []).forEach((p) => {
     if (!p.thumbnail) return;
-    const orig = volta[p.title] || p.title;
-    mapa[orig] = { src: p.thumbnail.source, largura: p.thumbnail.width, altura: p.thumbnail.height, titulo: p.title };
+    const orig = volta[p.title] || volta[norm(p.title)] || p.title;
+    const foto = { src: p.thumbnail.source, largura: p.thumbnail.width, altura: p.thumbnail.height, titulo: p.title };
+    aliases(orig).concat(aliases(p.title)).forEach((a) => { mapa[a] = foto; });
   });
   return mapa;
 }
 
 /* ---------------- Pontos turísticos (OpenStreetMap / Overpass) ---------------- */
-export const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+export const OVERPASS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+];
+const OVERPASS_NOMES = [
+  'O OpenStreetMap (Overpass)',
+  'O servidor reserva do OpenStreetMap',
+  'O terceiro servidor do OpenStreetMap',
+];
 
 function consultaOverpass(lat, lon, raio) {
   const a = `(around:${raio},${lat},${lon})`;
   const aN = `(around:${Math.round(raio * 1.6)},${lat},${lon})`;
-  return `[out:json][timeout:25];(
-nwr["tourism"~"^(attraction|museum|viewpoint|theme_park|zoo)$"]["name"]${a};
-nwr["historic"]["name"]["wikipedia"]${a};
-nwr["historic"~"^(monument|castle|ruins|archaeological_site|fort)$"]["name"]${a};
-nwr["natural"~"^(beach|waterfall|peak)$"]["name"]${aN};
-nwr["leisure"="park"]["name"]["wikidata"]${a};
-);out center tags qt 300;`;
+  return `[out:json][timeout:12];(
+nw["tourism"~"^(attraction|museum|viewpoint|theme_park|zoo)$"]["name"]${a};
+nw["historic"~"^(monument|castle|ruins|archaeological_site|fort)$"]["name"]${a};
+nw["natural"~"^(beach|waterfall|peak)$"]["name"]${aN};
+nw["leisure"="park"]["name"]["wikidata"]${a};
+);out center tags qt 80;`;
 }
 
-/** Lista de pontos turísticos reais perto de (lat, lon). Tenta o servidor principal e, se falhar, o de reserva. */
+/** Lista de pontos turísticos reais perto de (lat, lon). Consulta os servidores Overpass em paralelo. */
 export async function pontosTuristicos(lat, lon, raio, { signal, onTentativa = () => {} } = {}) {
   const la = Math.round(lat * 1000) / 1000, lo = Math.round(lon * 1000) / 1000;
   const chave = `osm:${la},${lo},${raio}`;
   const cache = lerCacheLocal(chave);
   if (cache) return { ...cache, doCache: true };
   const corpo = 'data=' + encodeURIComponent(consultaOverpass(la, lo, raio));
-  let ultimoErro = null;
-  for (let i = 0; i < OVERPASS.length; i++) {
-    onTentativa(i);
-    try {
-      const d = await buscar(OVERPASS[i], { fonte: i ? 'O servidor reserva do OpenStreetMap' : 'O OpenStreetMap (Overpass)', metodo: 'POST', corpo, semCache: true, timeout: 32000, signal });
-      if (!d || !Array.isArray(d.elements)) throw new ErroAPI('O OpenStreetMap devolveu uma resposta inesperada.');
-      if (d.remark && /timed out|runtime error/i.test(d.remark) && !d.elements.length) throw new ErroAPI('O OpenStreetMap não terminou a consulta a tempo.');
-      const r = { elementos: d.elements, servidor: i, quando: new Date().toISOString() };
-      gravarCacheLocal(chave, r, 7 * 24 * 60 * 60 * 1000);
-      return r;
-    } catch (e) {
-      if (e.status === -1) throw e;
-      ultimoErro = e;
-    }
+  const extra = new AbortController();
+  const aoAbortar = () => extra.abort(signal && signal.reason);
+  if (signal) {
+    if (signal.aborted) throw new ErroAPI('Operação cancelada.', { status: -1 });
+    signal.addEventListener('abort', aoAbortar, { once: true });
   }
-  throw new ErroAPI(`Os dois servidores do OpenStreetMap falharam (${msgErro(ultimoErro)}) Tente de novo em alguns minutos.`, { status: ultimoErro ? ultimoErro.status : 0 });
+  onTentativa(0);
+  const tentativas = OVERPASS.map(async (url, i) => {
+    const d = await buscar(url, { fonte: OVERPASS_NOMES[i], metodo: 'POST', corpo, semCache: true, timeout: 12000, signal: extra.signal });
+    if (!d || !Array.isArray(d.elements)) throw new ErroAPI('O OpenStreetMap devolveu uma resposta inesperada.');
+    if (d.remark && /timed out|runtime error/i.test(d.remark) && !d.elements.length) throw new ErroAPI('O OpenStreetMap não terminou a consulta a tempo.');
+    return { elementos: d.elements, servidor: i, quando: new Date().toISOString() };
+  });
+  tentativas.forEach((p) => p.catch(() => {}));
+  try {
+    const r = await Promise.any(tentativas);
+    extra.abort();
+    gravarCacheLocal(chave, r, 7 * 24 * 60 * 60 * 1000);
+    return r;
+  } catch (e) {
+    if (signal && signal.aborted) throw new ErroAPI('Operação cancelada.', { status: -1 });
+    const first = e && e.errors && e.errors[0];
+    throw new ErroAPI(`Nenhum servidor do OpenStreetMap respondeu (${msgErro(first || e)}) Tente de novo em alguns minutos.`, { status: first && first.status ? first.status : 0 });
+  } finally {
+    if (signal) signal.removeEventListener('abort', aoAbortar);
+  }
+}
+
+/** Lugares com artigo na Wikipédia perto de (lat, lon). Reserva quando o Overpass não responde. */
+export async function pontosWiki(lat, lon, raio, { signal } = {}) {
+  const raioM = Math.max(10, Math.min(10000, Math.round(raio)));
+  const u = 'https://pt.wikipedia.org/w/api.php?' + new URLSearchParams({
+    action: 'query', list: 'geosearch', gscoord: `${lat}|${lon}`,
+    gsradius: String(raioM), gslimit: '20', format: 'json', formatversion: '2', origin: '*',
+  });
+  const d = await buscar(u, { fonte: 'A Wikipédia', ttl: 12 * 60 * 60 * 1000, signal });
+  return ((d.query && d.query.geosearch) || []).map((p) => ({
+    id: 'wiki/' + p.pageid,
+    nome: p.title,
+    tipo: 'Artigo da Wikipédia',
+    grupo: 'atracao',
+    lat: p.lat,
+    lon: p.lon,
+    dist: (p.dist || 0) / 1000,
+    wikiPt: p.title,
+    score: 2 - (p.dist || 0) / raioM,
+  }));
 }
 
 /* ---------------- Visualizações na Wikipédia (Wikimedia Pageviews) ---------------- */

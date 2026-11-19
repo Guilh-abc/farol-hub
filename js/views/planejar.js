@@ -49,7 +49,7 @@ export function render(ctx) {
             <small id="f-destino-ajuda">Cidade, parque ou região. Obrigatório.</small>
             <p class="erro-campo" id="f-destino-erro" aria-live="polite"></p>
           </div>
-          <div class="atalhos" role="group" aria-label="Sugestões de destino" style="margin-top:var(--sp-2)">
+          <div class="atalhos atalhos--linha" role="group" aria-label="Sugestões de destino" style="margin-top:var(--sp-2)">
             ${HINTS.map((h) => `<button type="button" class="chip" data-hint="${esc(h)}">${esc(h)}</button>`).join('')}
           </div>
           <div class="campo">
@@ -97,7 +97,7 @@ export function render(ctx) {
           </div>
         </fieldset>
 
-        <div class="barra-envio">
+        <div class="barra-envio" id="barra-envio">
           <span class="barra-envio__resumo" id="resumo" aria-hidden="true"></span>
           <button class="btn btn--primario" type="submit">Montar o roteiro ${icone('i-seta')}</button>
         </div>
@@ -122,6 +122,9 @@ export function render(ctx) {
   const txt = el.querySelector('#f-desejo');
   const cont = el.querySelector('#f-desejo-cont');
   const resumo = el.querySelector('#resumo');
+  const barra = el.querySelector('#barra-envio');
+  const chipsDestino = el.querySelector('.atalhos--linha');
+  let chipsVisiveis = true;
 
   const lerForm = () => {
     const fd = new FormData(form);
@@ -141,8 +144,18 @@ export function render(ctx) {
   };
   const atualizarResumo = () => {
     const x = lerForm();
-    resumo.textContent = x.destination.length >= 2 ? `${x.destination} · ${transporteRotulo(x.transport)} · ${x.days} dias` : 'Preencha o destino para acender o farol';
+    const pronto = x.destination.length >= 2;
+    resumo.textContent = pronto ? `${x.destination} · ${transporteRotulo(x.transport)} · ${x.days} dias` : 'Preencha o destino para acender o farol';
+    barra.classList.toggle('is-ativa', pronto && !chipsVisiveis);
   };
+  if (typeof IntersectionObserver === 'function' && chipsDestino) {
+    const io = new IntersectionObserver((ents) => {
+      chipsVisiveis = ents.some((e) => e.isIntersecting);
+      atualizarResumo();
+    }, { threshold: 0 });
+    io.observe(chipsDestino);
+    signal.addEventListener('abort', () => io.disconnect(), { once: true });
+  }
   atualizarResumo();
 
   form.addEventListener('input', (ev) => {

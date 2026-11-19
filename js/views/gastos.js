@@ -244,7 +244,7 @@ export function render(ctx) {
             <div class="barra"><div class="barra__topo"><span class="num">${reais(t.gasto)} de ${reais(t.planejado)}</span><span class="num muted">${t.planejado ? pct + '%' : 'sem orçamento'}</span></div><div class="barra__trilho" role="img" aria-label="${pct}% do orçamento usado"><span class="barra__gasto" style="width:${pct}%${t.gasto > t.planejado && t.planejado ? ';background:var(--danger)' : ''}"></span></div></div>
             <div><a class="btn btn--secundario btn--pequeno" href="#/gastos/${esc(v.id)}">Abrir controle</a></div>
           </li>`;
-        }).join('')}</ul>` : `<div class="vazio"><p>Nenhuma viagem ainda.</p><p class="faint">Crie abaixo ou, num caderno de roteiro, use a aba <strong>Gastos</strong> para começar com o orçamento estimado.</p></div>`}
+        }).join('')}</ul>` : `<div class="vazio"><p>Nenhuma viagem ainda.</p><p class="faint">Crie abaixo ou, num caderno de roteiro, use a aba Gastos para começar com o orçamento estimado.</p><button type="button" class="btn btn--primario" data-rolar="form-nova">Criar a primeira viagem</button></div>`}
       </section>
 
       <section class="secao" aria-labelledby="t-nova">
@@ -289,6 +289,10 @@ export function render(ctx) {
     </div>`;
 
     const $ = (s) => el.querySelector(s);
+    $('[data-rolar="form-nova"]')?.addEventListener('click', () => {
+      $('#form-nova')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      $('#n-nome')?.focus();
+    });
     $('#form-nova').addEventListener('submit', (ev) => {
       ev.preventDefault();
       const fd = new FormData(ev.target);

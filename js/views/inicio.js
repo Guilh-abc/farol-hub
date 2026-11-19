@@ -1,5 +1,5 @@
 // Tela: Início — Farol · byGui
-import { geocodificar, todasNoticias, emAlta, msgErro } from '../api.js';
+import { geocodificar, todasNoticias, misturarNoticias, emAlta, msgErro } from '../api.js';
 import { esc, icone, bandeira, skCards, erroHTML, vazioHTML, carregandoHTML, numero, dataBR } from '../ui.js';
 import { listarCadernos, listarViagens, diasAte } from '../store.js';
 import { hrefDestino, cardDestaque, cardNoticia, carregarFotosCartoes } from './comum.js';
@@ -72,7 +72,7 @@ export function render(ctx) {
         <button type="button" class="chip" data-filtro="br" aria-pressed="false">Brasil</button>
         <button type="button" class="chip" data-filtro="ex" aria-pressed="false">Exterior</button>
       </div>
-      <div class="grid grid--3" id="grade-destaques">${dados.destaques.map((d) => cardDestaque(d, dados.paises)).join('')}</div>
+      <div class="grid grid--3" id="grade-destaques">${dados.destaques.map((d, i) => cardDestaque(d, dados.paises, { eager: i < 6, prioridade: i < 2 })).join('')}</div>
     </section>
 
     <section class="secao" aria-labelledby="titulo-news">
@@ -184,7 +184,7 @@ export function render(ctx) {
         news.querySelector('[data-acao="tentar"]')?.addEventListener('click', carregarNews);
         return;
       }
-      news.innerHTML = `<div class="noticias">${itens.slice(0, 4).map(cardNoticia).join('')}</div>`;
+      news.innerHTML = `<div class="noticias">${misturarNoticias(itens, 4).map(cardNoticia).join('')}</div>`;
     } catch (e) {
       if (e.status === -1) return;
       news.innerHTML = erroHTML(msgErro(e));

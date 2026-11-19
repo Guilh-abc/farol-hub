@@ -10,10 +10,12 @@ export function hrefDestino(l) {
   return `#/destino/${Number(l.lat).toFixed(4)},${Number(l.lon).toFixed(4)}?${q.toString()}`;
 }
 
-export function cardDestaque(d, paises) {
+export function cardDestaque(d, paises, { eager = false, prioridade = false } = {}) {
   const p = paises[d.pais];
+  const load = eager ? '' : ' loading="lazy"';
+  const prio = prioridade ? ' fetchpriority="high"' : '';
   return `<a class="card card--link destaque destaque--foto" href="#/destino/${esc(d.slug)}" data-pais="${esc(d.pais)}">
-    <div class="destaque__foto"><img data-wiki="${esc(d.wiki)}" alt="" width="480" height="300" loading="lazy" decoding="async"></div>
+    <div class="destaque__foto"><img data-wiki="${esc(d.wiki)}" alt="" width="480" height="300"${load}${prio} decoding="async"></div>
     <div class="destaque__corpo">
       <span class="destaque__pais"><img src="${bandeira(d.pais)}" alt="" width="20" height="14" loading="lazy">${esc(d.local)}${p && d.local !== p.n ? ' · ' + esc(p.n) : ''}</span>
       <h3>${esc(d.nome)}</h3>
@@ -21,6 +23,15 @@ export function cardDestaque(d, paises) {
       <span class="destaque__ir">Ver painel ${icone('i-seta')}</span>
     </div>
   </a>`;
+}
+
+function fotoDoMapa(mapa, titulo) {
+  if (!titulo) return null;
+  return mapa[titulo] || mapa[titulo.replace(/_/g, ' ')] || mapa[titulo.replace(/ /g, '_')] || null;
+}
+
+function revelarFoto(img) {
+  if (img.naturalWidth) img.classList.add('is-ok');
 }
 
 /** Preenche as fotos dos cartões (uma chamada em lote à Wikipédia). Falha silenciosa: fica o fundo neutro. */
@@ -31,10 +42,12 @@ export async function carregarFotosCartoes(raiz, { signal } = {}) {
     const mapa = await fotosWiki(imgs.map((i) => i.dataset.wiki), { tamanho: 500, signal });
     if (signal && signal.aborted) return;
     imgs.forEach((img) => {
-      const f = mapa[img.dataset.wiki];
+      const f = fotoDoMapa(mapa, img.dataset.wiki);
       if (!f) return;
-      img.onload = () => img.classList.add('is-ok');
+      img.onload = () => revelarFoto(img);
+      img.onerror = () => { img.removeAttribute('src'); };
       img.src = f.src;
+      if (img.complete) revelarFoto(img);
     });
   } catch { /* sem fotos: o cartão continua legível */ }
 }
